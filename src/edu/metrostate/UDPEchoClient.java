@@ -7,6 +7,10 @@ public class UDPEchoClient {
 	public final static int PORT = 5002;
 
 	public static void main(String[] args) {
+		
+		/**
+		 * TEST PUSH
+		 */
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) {
 			hostname = args[0];
