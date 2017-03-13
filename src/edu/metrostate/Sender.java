@@ -17,6 +17,10 @@ public class Sender {
 	public static void main(String[] args) {
 		
 		Packet packet = new Packet();
+		
+		/**
+		 * TEST Push
+		 */
 
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) { // Take in any arguments
