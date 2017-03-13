@@ -19,7 +19,7 @@ public class Sender {
 		Packet packet = new Packet();
 		
 		/**
-		 * TEST
+		 * TEST push
 		 */
 
 		String hostname = "localhost"; // translates to 127.0.0.1
