@@ -2,14 +2,15 @@ package edu.metrostate;
 
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 
 public class Sender {
 	public final static String SIZE = "-s";
 	public final static String TIMEOUT_INTERVAL = "-t";
+	public static int timeout = 10000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public final static int PORT = 5002;
-	public static int timeout = 10000;
 	public static int window = 1;
 	public static double corruptDatagramsPercent = 0.25;
 
@@ -18,7 +19,7 @@ public class Sender {
 		Packet packet = new Packet();
 
 		String hostname = "localhost"; // translates to 127.0.0.1
-		if (args.length > 0) {
+		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
 				String argument = args[i];
 				int value = Integer.parseInt(args[i+1]);
@@ -38,7 +39,7 @@ public class Sender {
 			InetAddress ia = InetAddress.getByName(hostname);
 			DatagramSocket socket = new DatagramSocket();
 			socket.setSoTimeout(timeout);
-			SenderThread sender = new SenderThread(socket, ia, PORT);
+			SenderThread sender = new SenderThread(packet, socket, ia, PORT);
 			sender.start();
 			Thread receiver = new ReceiverThread(socket);
 			receiver.start();
@@ -48,15 +49,17 @@ public class Sender {
 			System.err.println(ex);
 		}
 	}
-} // end class UDPEchoClient
+} // end class Sender
 
 class SenderThread extends Thread {
 	private InetAddress server;
 	private DatagramSocket socket;
+	private Packet packet;
 	private int port;
 	private volatile boolean stopped = false;
 	
-	SenderThread(DatagramSocket socket, InetAddress address, int port) {
+	SenderThread(Packet packet, DatagramSocket socket, InetAddress address, int port) {
+		this.packet = packet;
 		this.server = address;
 		this.port = port;
 		this.socket = socket;
@@ -70,17 +73,21 @@ class SenderThread extends Thread {
 	@Override
 	public void run() {
 		try {
-			BufferedReader userInput = new BufferedReader(new InputStreamReader(System.in));
+			BufferedReader file = new BufferedReader(new InputStreamReader(
+					Sender.class.getResourceAsStream(
+							"ICS460-Projects1-and-2.txt"), "UTF-8"));
 			while (true) {
 				if (stopped) {
 					return;
 				}
-				String theLine = userInput.readLine();
-				if (theLine.equals(".")) {
+				// Read text from buffer into char[] and convert to byte[]
+				char[] c = null;
+				int i = file.read(c, 0, packet.len-12);
+				packet.data = new String(c).getBytes("UTF-8");
+				if (i == -1) { // End of file
 					break;
 				}
-				byte[] data = theLine.getBytes("UTF-8");
-				DatagramPacket output = new DatagramPacket(data, data.length, server, port);
+				DatagramPacket output = new DatagramPacket(packet.data, packet.len, server, port);
 				socket.send(output);
 				Thread.yield();
 			}
@@ -126,10 +133,24 @@ class ReceiverThread extends Thread {
 
 class Packet {
 	short cksum; //16-bit 2-byte
-	short len;	//16-bit 2-byte
+	short len = 512;	//16-bit 2-byte
 	int ackno;	//32-bit 4-byte
 	int seqno ; 	//32-bit 4-byte Data packet Only
 	byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
+	
+	public Packet(short cksum, short len, int ackno, int seqno, byte[] data) {
+		this.cksum = cksum;
+		this.len = len;
+		this.ackno = ackno;
+		this.seqno = seqno;
+		this.data = data;
+	}
+
+	public Packet() {
+		// TODO Auto-generated constructor stub
+	}
+	
+	
 }
 
 
