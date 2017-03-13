@@ -3,21 +3,41 @@ package edu.metrostate;
 import java.io.*;
 import java.net.*;
 
-public class UDPEchoClient {
+public class Sender {
+	public final static String SIZE = "-s";
+	public final static String TIMEOUT_INTERVAL = "-t";
+	public final static String WINDOW_SIZE = "-w";
+	public final static String CORRUPT_DATAGRAMS = "-d";
 	public final static int PORT = 5002;
+	public static int timeout = 10000;
+	public static int window = 1;
+	public static double corruptDatagramsPercent = 0.25;
 
 	public static void main(String[] args) {
 		
-		/**
-		 * TEST PUSH
-		 */
+		Packet packet = new Packet();
+
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) {
-			hostname = args[0];
+			for(int i = 0; i < args.length; i+= 2) {
+				String argument = args[i];
+				int value = Integer.parseInt(args[i+1]);
+				
+				switch (argument) {
+					case SIZE: packet.len = (short) value;
+					break;
+					case TIMEOUT_INTERVAL: timeout = value;
+					break;
+					case WINDOW_SIZE: window = value;
+					break;
+					case CORRUPT_DATAGRAMS: corruptDatagramsPercent = value;
+				}
+			}
 		}
 		try {
 			InetAddress ia = InetAddress.getByName(hostname);
 			DatagramSocket socket = new DatagramSocket();
+			socket.setSoTimeout(timeout);
 			SenderThread sender = new SenderThread(socket, ia, PORT);
 			sender.start();
 			Thread receiver = new ReceiverThread(socket);
@@ -99,6 +119,17 @@ class ReceiverThread extends Thread {
 				System.err.println(ex);
 			}
 		}
-	} // end class ReceiverThread
+	}
+		
+
+} // end class ReceiverThread
+
+class Packet {
+	short cksum; //16-bit 2-byte
+	short len;	//16-bit 2-byte
+	int ackno;	//32-bit 4-byte
+	int seqno ; 	//32-bit 4-byte Data packet Only
+	byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
 }
+
 

@@ -8,21 +8,21 @@ import java.net.SocketTimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class UDPEchoServer implements Runnable {
+public class Receiver implements Runnable {
 	public final static int DEFAULT_PORT = 5002;
 	private final int bufferSize; // in bytes
 	private final int port;
-	private final Logger logger = Logger.getLogger(UDPEchoServer.class.getCanonicalName());
+	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
 	private volatile boolean isShutDown = false;
 	
-	public UDPEchoServer (int port, int bufferSize) {
+	public Receiver (int port, int bufferSize) {
 		this.bufferSize = bufferSize;
 		this.port = port;
 	}
-	public UDPEchoServer (int port) {
+	public Receiver (int port) {
 		this(port, 8192);
 	}
-	public UDPEchoServer () {
+	public Receiver () {
 		this(DEFAULT_PORT);
 	}
 	
@@ -63,7 +63,7 @@ public class UDPEchoServer implements Runnable {
 	}
 
 	public static void main(String[] args) {
-		UDPEchoServer server = new UDPEchoServer();
+		Receiver server = new Receiver();
 		Thread t = new Thread (server);
 		t.start();
 	}
