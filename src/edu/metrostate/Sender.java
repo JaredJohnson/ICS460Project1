@@ -89,11 +89,7 @@ class SenderThread extends Thread {
 					return;
 				}
 				// Read text from buffer into char[] and convert to byte[]
-<<<<<<< HEAD
-				char[] c = new char[packet.len-12];
-=======
 				char[] c = new char[packet.len];
->>>>>>> branch 'master' of https://github.com/VikingsCoding/ICS460Project1
 				int i = file.read(c, 0, packet.len-12);
 				packet.data = new String(c).getBytes("UTF-8");
 				if (i == -1) { // End of file
