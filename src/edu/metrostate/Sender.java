@@ -81,7 +81,7 @@ class SenderThread extends Thread {
 					return;
 				}
 				// Read text from buffer into char[] and convert to byte[]
-				char[] c = null;
+				char[] c = new char[packet.len];
 				int i = file.read(c, 0, packet.len-12);
 				packet.data = new String(c).getBytes("UTF-8");
 				if (i == -1) { // End of file
