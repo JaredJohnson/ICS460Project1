@@ -10,14 +10,14 @@ public class Sender {
 	public static int timeout = 10000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public final static int PORT = 5002;
-	public static int window = 1;
 	public static double corruptDatagramsPercent = 0.25;
+	public static int port = 5002;
+	public static int window = 1;
 
 	public static void main(String[] args) {
 		
 		Packet packet = new Packet();
-
+		
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
@@ -32,6 +32,14 @@ public class Sender {
 					case WINDOW_SIZE: window = value;
 					break;
 					case CORRUPT_DATAGRAMS: corruptDatagramsPercent = value;
+					break;
+				}// Now check if arg is ip addr or rec port
+				if (argument.contains(".")) {
+					hostname = argument;
+					i -= 1;
+				} else {
+					port = Integer.parseInt(argument);
+					i -= 1;
 				}
 			}
 		}
@@ -39,7 +47,7 @@ public class Sender {
 			InetAddress ia = InetAddress.getByName(hostname);
 			DatagramSocket socket = new DatagramSocket();
 			socket.setSoTimeout(timeout);
-			SenderThread sender = new SenderThread(packet, socket, ia, PORT);
+			SenderThread sender = new SenderThread(packet, socket, ia, port);
 			sender.start();
 			Thread receiver = new ReceiverThread(socket);
 			receiver.start();
@@ -81,7 +89,11 @@ class SenderThread extends Thread {
 					return;
 				}
 				// Read text from buffer into char[] and convert to byte[]
+<<<<<<< HEAD
 				char[] c = new char[packet.len-12];
+=======
+				char[] c = new char[packet.len];
+>>>>>>> branch 'master' of https://github.com/VikingsCoding/ICS460Project1
 				int i = file.read(c, 0, packet.len-12);
 				packet.data = new String(c).getBytes("UTF-8");
 				if (i == -1) { // End of file
@@ -89,10 +101,14 @@ class SenderThread extends Thread {
 				}
 				DatagramPacket output = new DatagramPacket(packet.data, packet.len, server, port);
 				socket.send(output);
+				Thread.sleep(1000);
 				Thread.yield();
 			}
 		} catch (IOException ex) {
 			System.err.println(ex);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 	}
 } // end class SenderThread
