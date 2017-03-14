@@ -2,21 +2,19 @@ package edu.metrostate;
 
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
 
 public class Sender {
 	public final static String SIZE = "-s";
+	public static int size = 512;
 	public final static String TIMEOUT_INTERVAL = "-t";
-	public static int timeout = 10000;
+	public static int timeout = 2000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public static double corruptDatagramsPercent = 0.25;
+	public static float corruptDatagramsRatio = 0.25f;
 	public static int port = 5002;
 	public static int window = 1;
 
 	public static void main(String[] args) {
-		
-		Packet packet = new Packet();
 		
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) { // Take in any arguments
@@ -25,13 +23,13 @@ public class Sender {
 				int value = Integer.parseInt(args[i+1]);
 				
 				switch (argument) {
-					case SIZE: packet.len = (short) value;
+					case SIZE: size = value;
 					break;
 					case TIMEOUT_INTERVAL: timeout = value;
 					break;
 					case WINDOW_SIZE: window = value;
 					break;
-					case CORRUPT_DATAGRAMS: corruptDatagramsPercent = value;
+					case CORRUPT_DATAGRAMS: corruptDatagramsRatio = value;
 					break;
 				}// Now check if arg is ip addr or rec port
 				if (argument.contains(".")) {
@@ -47,7 +45,7 @@ public class Sender {
 			InetAddress ia = InetAddress.getByName(hostname);
 			DatagramSocket socket = new DatagramSocket();
 			socket.setSoTimeout(timeout);
-			SenderThread sender = new SenderThread(packet, socket, ia, port);
+			SenderThread sender = new SenderThread(socket, ia, port);
 			sender.start();
 			Thread receiver = new ReceiverThread(socket);
 			receiver.start();
@@ -62,12 +60,11 @@ public class Sender {
 class SenderThread extends Thread {
 	private InetAddress server;
 	private DatagramSocket socket;
-	private Packet packet;
+	public static float corruptDatagramsRatio;
 	private int port;
 	private volatile boolean stopped = false;
 	
-	SenderThread(Packet packet, DatagramSocket socket, InetAddress address, int port) {
-		this.packet = packet;
+	SenderThread(DatagramSocket socket, InetAddress address, int port) {
 		this.server = address;
 		this.port = port;
 		this.socket = socket;
@@ -88,16 +85,22 @@ class SenderThread extends Thread {
 				if (stopped) {
 					return;
 				}
+				Packet packet = new Packet();
 				// Read text from buffer into char[] and convert to byte[]
-				char[] c = new char[packet.len];
-				int i = file.read(c, 0, packet.len-12);
-				packet.data = new String(c).getBytes("UTF-8");
+				char[] c = new char[Sender.size];
+				int i = file.read(c, 0, Sender.size-12);
+				packet.setData(new String(c).getBytes("UTF-8"));
 				if (i == -1) { // End of file
 					break;
 				}
-				DatagramPacket output = new DatagramPacket(packet.data, packet.len, server, port);
+				// Simulate lossy network
+				String condition = packet.simLossyNetwork(packet);
+				// Increment sequence number
+				packet.setSeqno(packet.getSeqno()+1);
+				DatagramPacket output = new DatagramPacket(packet.getData(), Sender.size, server, port);
+				System.out.println("[SENDing]: ");
 				socket.send(output);
-				Thread.sleep(1000);
+				Thread.sleep(1000); // Slow down to human time
 				Thread.yield();
 			}
 		} catch (IOException ex) {
@@ -123,46 +126,25 @@ class ReceiverThread extends Thread {
 	
 	@Override
 	public void run() {
-		byte[] buffer = new byte[65507];
+		byte[] buffer = new byte[Sender.size];
 		while (true) {
 			if (stopped) {
 				return;
 			}
 			DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
-			try {
+			try { // Receive datagram
 				socket.receive(dp);
-				String s = new String(dp.getData(), 0, dp.getLength(), "UTF-8");
-				System.out.println(s);
+				// Convert bytes back to Packet object
+				Packet ack = new Packet();
+				ack = ack.convertToPacket(dp.getData());
+				System.out.println("[AckRcvd]: " + (ack.getAckno()-1));
 				Thread.yield();
-			} catch (IOException ex) {
+			} catch (IOException | ClassNotFoundException ex) {
 				System.err.println(ex);
 			}
 		}
 	}
-		
-
 } // end class ReceiverThread
 
-class Packet {
-	short cksum; //16-bit 2-byte
-	short len = 512;	//16-bit 2-byte
-	int ackno;	//32-bit 4-byte
-	int seqno ; 	//32-bit 4-byte Data packet Only
-	byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
-	
-	public Packet(short cksum, short len, int ackno, int seqno, byte[] data) {
-		this.cksum = cksum;
-		this.len = len;
-		this.ackno = ackno;
-		this.seqno = seqno;
-		this.data = data;
-	}
-
-	public Packet() {
-		// TODO Auto-generated constructor stub
-	}
-	
-	
-}
 
 
