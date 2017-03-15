@@ -14,7 +14,7 @@ public class Packet implements Serializable {
 	private short cksum; //16-bit 2-byte
 	private short len = 512;	//16-bit 2-byte
 	private int ackno;	//32-bit 4-byte
-	private int seqno = 0; 	//32-bit 4-byte Data packet Only
+	private int seqno; 	//32-bit 4-byte Data packet Only
 	private byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
 	
 	public Packet(short cksum, short len, int ackno, int seqno, byte[] data) {
@@ -28,7 +28,12 @@ public class Packet implements Serializable {
 	public Packet() {
 		// TODO Auto-generated constructor stub
 	}
-	
+	/**
+	 * This simulates a lossy network per assignment instructions
+	 * @param packet
+	 * @return packet condition
+	 * @throws InterruptedException
+	 */
 	public String simLossyNetwork(Packet packet) throws InterruptedException {
 		final int CORRUPT = 1;
 		final int DELAY = 2;
@@ -40,28 +45,44 @@ public class Packet implements Serializable {
 			switch(random) {
 				case CORRUPT: packet.cksum = 1;
 				return "ERRR";
-				case DELAY: Thread.sleep(number.nextInt(5));
+				case DELAY: Thread.sleep(number.nextInt(1000));
 				return "DLYD";
-				case DROP:
+				case DROP: Thread.sleep(Sender.timeout);;
 				return "DROP";
 			}
 		} 
 		return "SENT";
 	}
-	
+	/**
+	 * Converts packet to byte[] for Datagram transport
+	 * @param packet
+	 * @return
+	 * @throws IOException
+	 */
 	public byte[] convertToBytes(Packet packet) throws IOException {
-		ByteArrayOutputStream baos = new ByteArrayOutputStream(6400);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(Sender.size);
 		ObjectOutputStream oos = new ObjectOutputStream(baos);
 		oos.writeObject(packet);
 		byte[] data = baos.toByteArray();
 		return data;
 	}
-	
-	public Packet convertToPacket(byte[] data) throws ClassNotFoundException, IOException {
+	/**
+	 * Converts byte[] back into packet for Datagram transport
+	 * @param data
+	 * @return
+	 * @throws IOException
+	 */
+	public Packet convertToPacket(byte[] data) throws IOException {
 		ByteArrayInputStream in = new ByteArrayInputStream(data);
 	    ObjectInputStream is = new ObjectInputStream(in);
-	    Packet packet = (Packet) is.readObject();
-	    return packet;
+		try {
+			Packet packet = (Packet) is.readObject();
+			return packet;
+		} catch (ClassNotFoundException | IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
 	}
 
 	public short getCksum() {
@@ -103,6 +124,4 @@ public class Packet implements Serializable {
 	public void setData(byte[] data) {
 		this.data = data;
 	}
-	
-	
 }
