@@ -97,7 +97,9 @@ class SenderThread extends Thread {
 				String condition = packet.simLossyNetwork(packet);
 				// Increment sequence number
 				packet.setSeqno(packet.getSeqno()+1);
-				DatagramPacket output = new DatagramPacket(packet.getData(), Sender.size, server, port);
+				// Convert packet to bytes
+				byte[] data = packet.convertToBytes(packet);
+				DatagramPacket output = new DatagramPacket(data, Sender.size, server, port);
 				System.out.println("[SENDing]: ");
 				socket.send(output);
 				Thread.sleep(1000); // Slow down to human time
