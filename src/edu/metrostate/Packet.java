@@ -5,9 +5,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.util.Random;
 
-public class Packet {
+public class Packet implements Serializable {
+	
+	private static final long serialVersionUID = 1L;
 	private short cksum; //16-bit 2-byte
 	private short len = 512;	//16-bit 2-byte
 	private int ackno;	//32-bit 4-byte
@@ -57,7 +60,8 @@ public class Packet {
 	public Packet convertToPacket(byte[] data) throws ClassNotFoundException, IOException {
 		ByteArrayInputStream in = new ByteArrayInputStream(data);
 	    ObjectInputStream is = new ObjectInputStream(in);
-	    return (Packet) is.readObject();
+	    Packet packet = (Packet) is.readObject();
+	    return packet;
 	}
 
 	public short getCksum() {

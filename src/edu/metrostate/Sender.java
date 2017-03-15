@@ -7,15 +7,14 @@ public class Sender {
 	public final static String SIZE = "-s";
 	public static int size = 512;
 	public final static String TIMEOUT_INTERVAL = "-t";
-	public static int timeout = 2000;
+	public static int timeout = 200000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public static float corruptDatagramsRatio = 0.25f;
+	public static float corruptDatagramsRatio = 0.99f;
 	public static int port = 5002;
 	public static int window = 1;
 
 	public static void main(String[] args) {
-		
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
@@ -80,7 +79,7 @@ class SenderThread extends Thread {
 		try {
 			BufferedReader file = new BufferedReader(new InputStreamReader(
 					Sender.class.getResourceAsStream(
-							"ICS460-Projects1-and-2.txt"), "UTF-8"));
+							"test.txt"), "UTF-8"));
 			while (true) {
 				if (stopped) {
 					return;
@@ -97,12 +96,14 @@ class SenderThread extends Thread {
 				String condition = packet.simLossyNetwork(packet);
 				// Increment sequence number
 				packet.setSeqno(packet.getSeqno()+1);
-				
-				DatagramPacket output = new DatagramPacket(packet.getData(), Sender.size, server, port);
-				System.out.print(String.format("%-14d | %-7s %s %s\n",
-						"[SENDing]: ", s, p.toString(),System.currentTimeMillis()));
+				// Convert packet to bytes
+				byte[] data = packet.convertToBytes(packet);
+				DatagramPacket output = new DatagramPacket(data, Sender.size, server, port);
+				System.out.print(String.format("%-14s | %-7s %s %s %s\n",
+						"[SENDing]: ", packet.getSeqno(), "byte sequence" ,
+						System.currentTimeMillis(), condition));
 				socket.send(output);
-				Thread.sleep(1000); // Slow down to human time
+				//Thread.sleep(1000); // Slow down to human time
 				Thread.yield();
 			}
 		} catch (IOException ex) {

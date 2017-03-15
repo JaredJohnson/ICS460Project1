@@ -42,6 +42,12 @@ public class Receiver implements Runnable {
 				DatagramPacket incoming = new DatagramPacket (buffer, buffer.length);
 				try {
 					socket.receive(incoming);
+					// Convert datagram data back into packet object
+					Packet incomingPacket = new Packet();
+					incomingPacket = incomingPacket.convertToPacket(incoming.getData());
+					// Print datagram received
+					System.out.print(String.format("%-14d | %-7s %s %s\n",
+							"[RECV]: ", incomingPacket.getSeqno(), "byte sequence" , "condition"));
 					Packet ack = new Packet((short) 0, (short) 8, ackno++, 0, null);
 					byte[] data = ack.convertToBytes(ack);
 					this.respond(socket, incoming, data);
@@ -51,6 +57,9 @@ public class Receiver implements Runnable {
 					}
 				} catch (IOException ex) {
 					logger.log(Level.WARNING, ex.getMessage(), ex);
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
 				}
 			} // end while
 		} catch (IOException ex) {
