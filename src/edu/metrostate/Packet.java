@@ -6,6 +6,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.io.UnsupportedEncodingException;
+import java.sql.Timestamp;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Random;
 
 public class Packet implements Serializable {
@@ -26,8 +30,8 @@ public class Packet implements Serializable {
 	}
 
 	public Packet() {
-		// TODO Auto-generated constructor stub
 	}
+	
 	/**
 	 * This simulates a lossy network per assignment instructions
 	 * @param packet
@@ -84,6 +88,13 @@ public class Packet implements Serializable {
 		}
 		return null;
 	}
+	
+	public Timestamp getCurrentTime() {
+		Date date= new Date();
+		long time = date.getTime();
+		Timestamp timestamp = new Timestamp(time);
+		return timestamp;
+	}
 
 	public short getCksum() {
 		return cksum;
@@ -123,5 +134,16 @@ public class Packet implements Serializable {
 
 	public void setData(byte[] data) {
 		this.data = data;
+	}
+	
+	public String getPayload() throws UnsupportedEncodingException {
+		String payload = new String(data, "UTF-8");
+		return payload;
+	}
+
+	@Override
+	public String toString() {
+		return "Packet [cksum=" + cksum + ", len=" + len + ", ackno=" + ackno
+				+ ", seqno=" + seqno + ", data=" + Arrays.toString(data) + "]";
 	}
 }

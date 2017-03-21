@@ -10,6 +10,10 @@ import java.util.logging.Logger;
 
 public class Receiver implements Runnable {
 	public final static int DEFAULT_PORT = 5002;
+	public final static String WINDOW_SIZE = "-w";
+	public final static String CORRUPT_DATAGRAMS = "-d";
+	public static int window = 1;
+	public static float corruptDatagramsRatio = 0.25f;
 	private int bufferSize; // in bytes
 	private final int port;
 	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
@@ -26,11 +30,39 @@ public class Receiver implements Runnable {
 		this(DEFAULT_PORT);
 	}
 	
+	public static void main(String[] args) {
+		String hostname = "localhost"; // translates to 127.0.0.1
+		if (args.length > 0) { // Take in any arguments
+			for(int i = 0; i < args.length; i+= 2) {
+				String argument = args[i];
+				int value = Integer.parseInt(args[i+1]);
+				
+				switch (argument) {
+					case WINDOW_SIZE: window = value;
+					break;
+					case CORRUPT_DATAGRAMS: corruptDatagramsRatio = value;
+					break;
+				}// Now check if arg is ip addr or rec port
+				if (argument.contains(".")) {
+					hostname = argument;
+					i -= 1;
+				} else {
+//					port = Integer.parseInt(argument);
+//					i -= 1;
+				}
+			}
+		}
+		Receiver server = new Receiver();
+		Thread t = new Thread (server);
+		System.out.println("Receiver is waiting patiently for some packet action.......");
+		t.start();
+	}
+	
 	@Override
 	public void run() {
 		byte[] buffer = new byte[1024];
 		try (DatagramSocket socket = new DatagramSocket (port)) {
-			socket.setSoTimeout(100000); // check every 10 seconds for shutdown
+			socket.setSoTimeout(10000); // check every 10 seconds for shutdown
 			int ackno = 1;
 			while (true) {
 				if (isShutDown) {
@@ -103,12 +135,5 @@ public class Receiver implements Runnable {
 		FileOutputStream out = new FileOutputStream("output.txt", true);
         out.write(packet.getData(), 0, packet.getData().length);
         out.close();
-	}
-
-	public static void main(String[] args) {
-		Receiver server = new Receiver();
-		Thread t = new Thread (server);
-		System.out.println("Receiver is waiting patiently for some packet action.......");
-		t.start();
 	}
 }

@@ -2,15 +2,18 @@ package edu.metrostate;
 
 import java.io.*;
 import java.net.*;
+import java.sql.Timestamp;
+import java.util.Date;
 
 public class Sender {
 	public final static String SIZE = "-s";
-	public static int size = 512    ;
+	public static int size = 512;
 	public final static String TIMEOUT_INTERVAL = "-t";
-	public static int timeout = 200000;
+	public static int timeout = 20000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static float corruptDatagramsRatio = 0.25f;
+	public static Packet timeoutPacket;
 	public static int port = 5002;
 	public static int window = 1;
 	public static int seqno = 1;
@@ -63,6 +66,7 @@ class SenderThread extends Thread {
 	private DatagramSocket socket;
 	public static float corruptDatagramsRatio;
 	private int port;
+	private static int byteCount = 1;
 	private volatile boolean stopped = false;    
 	
 	SenderThread(DatagramSocket socket, InetAddress address, int port) {
@@ -82,13 +86,12 @@ class SenderThread extends Thread {
 			BufferedReader file = new BufferedReader(new InputStreamReader(
 					Sender.class.getResourceAsStream(
 							"ICS460-Projects1-and-2.txt"), "UTF-8"));
-			DatagramPacket output = null;
 			while (true) {
 				if (stopped) {
 					return;
 				}
 				try {
-					if (Sender.seqno == Sender.ackno) { // Send next packet
+					if (Sender.seqno == Sender.ackno) { // Create next packet
 						Packet packet = new Packet();
 						packet.setSeqno(Sender.seqno);
 						// Read text from buffer into char[] and convert to byte[]
@@ -98,28 +101,13 @@ class SenderThread extends Thread {
 						if (i == -1) { // End of file
 							break; 
 						}
-						// Simulate lossy network
-						String condition = packet.simLossyNetwork(packet);
-
-						// Convert packet to bytes
-						byte[] data = packet.convertToBytes(packet);
+						// Set static packet in case of timeout
+						Sender.timeoutPacket = packet;
 						
-						// Print status
-						String payload = new String(packet.getData(), "UTF-8");
-						System.out.print(String.format("[%-7s] %-10s %s %s %s\n",
-								"SENDing: ", "seqno: [" + packet.getSeqno() + "]", 
-								"[" + payload.substring(0, 1) + " : " + payload.substring((payload.length()-13)) + "]" ,
-								System.currentTimeMillis(), condition));
-						
-						// Send packet
-						output = new DatagramPacket(data, data.length, server, port);
-						socket.send(output);
-						Thread.sleep(1000); // Slow down to human time
-						Thread.yield();
+						sendPacket(packet);
 					}
 				} catch (SocketTimeoutException ex) { // If no ack - resend
-					//socket.send(output);
-
+					sendPacket(Sender.timeoutPacket);
 				}
 			}
 		} catch (IOException ex) {
@@ -128,6 +116,22 @@ class SenderThread extends Thread {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}	
+	public void sendPacket(Packet packet) throws IOException, InterruptedException {
+		// Simulate lossy network
+		String condition = packet.simLossyNetwork(packet);
+		// Convert packet to bytes
+		byte[] data = packet.convertToBytes(packet);
+		// Print status
+		System.out.print(String.format("[%-7s] %-10s %s %s %s\n",
+				"SENDing: ", "seqno: [" + packet.getSeqno() + "]", 
+				"[" + ((packet.getSeqno()*Sender.size)-Sender.size) + " : " + 
+				(packet.getSeqno()*Sender.size) + "]" , packet.getCurrentTime(), condition));
+		// Send packet
+		DatagramPacket output = new DatagramPacket(data, data.length, server, port);
+		socket.send(output);
+		Thread.sleep(1000); // Slow down to human time
+		Thread.yield();
 	}
 } // end class SenderThread
 
@@ -173,7 +177,7 @@ class ReceiverThread extends Thread {
 				
 				
 				Thread.yield();
-			} catch (IOException ex) { // If timeout occurs
+			} catch (IOException ex) {
 				System.err.println(ex);
 			}
 		}
