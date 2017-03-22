@@ -21,15 +21,15 @@ public class Packet implements Serializable {
 	private int seqno; 	//32-bit 4-byte Data packet Only
 	private byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
 	
-	public Packet(short cksum, short len, int ackno, int seqno, byte[] data) {
-		this.cksum = cksum;
+	public Packet(short len, int ackno, int seqno) {
+		this.cksum = 0;
 		this.len = len;
 		this.ackno = ackno;
 		this.seqno = seqno;
-		this.data = data;
 	}
 
 	public Packet() {
+		this.cksum = 0;
 	}
 	
 	/**
@@ -49,7 +49,7 @@ public class Packet implements Serializable {
 			switch(random) {
 				case CORRUPT: packet.cksum = 1;
 				return "ERRR";
-				case DELAY: Thread.sleep(number.nextInt(1000));
+				case DELAY: Thread.sleep(Sender.timeout);
 				return "DLYD";
 				case DROP: Thread.sleep(Sender.timeout);;
 				return "DROP";
@@ -89,11 +89,11 @@ public class Packet implements Serializable {
 		return null;
 	}
 	
-	public Timestamp getCurrentTime() {
+	public String getCurrentTime() {
 		Date date= new Date();
 		long time = date.getTime();
 		Timestamp timestamp = new Timestamp(time);
-		return timestamp;
+		return timestamp.toString().substring(11);
 	}
 
 	public short getCksum() {
