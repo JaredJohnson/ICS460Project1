@@ -4,33 +4,29 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Receiver implements Runnable {
-	public final static int DEFAULT_PORT = 5002;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static int window = 1;
 	public static float corruptDatagramsRatio = 0.25f;
 	private int bufferSize; // in bytes
-	private final int port;
+	private static int port = 5002;
+	private final InetAddress address;
 	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
 	private volatile boolean isShutDown = false;
-	
-	public Receiver (int port, int bufferSize) {
-		this.bufferSize = bufferSize;
+
+	public Receiver (InetAddress address, int port) {
+		this.address = address;
 		this.port = port;
 	}
-	public Receiver (int port) {
-		this(port, 8192);
-	}
-	public Receiver () {
-		this(DEFAULT_PORT);
-	}
 	
-	public static void main(String[] args) {
+	public static void main(String[] args) throws UnknownHostException {
 		String hostname = "localhost"; // translates to 127.0.0.1
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
@@ -47,12 +43,13 @@ public class Receiver implements Runnable {
 					hostname = argument;
 					i -= 1;
 				} else {
-//					port = Integer.parseInt(argument);
-//					i -= 1;
+					port = Integer.parseInt(argument);
+					i -= 1;
 				}
 			}
 		}
-		Receiver server = new Receiver();
+		InetAddress ia = InetAddress.getByName(hostname);
+		Receiver server = new Receiver(ia, port);
 		Thread t = new Thread (server);
 		System.out.println("Receiver is waiting patiently for some packet action.......");
 		t.start();
@@ -60,10 +57,10 @@ public class Receiver implements Runnable {
 	
 	@Override
 	public void run() {
-		byte[] buffer = new byte[1024];
+		byte[] buffer = new byte[65507];
 		try (DatagramSocket socket = new DatagramSocket (port)) {
 			socket.setSoTimeout(10000); // check every 10 seconds for shutdown
-			int nextFrameExpected = 1;
+			int ackno = 1;
 			while (true) {
 				if (isShutDown) {
 					return;
@@ -86,21 +83,21 @@ public class Receiver implements Runnable {
 					}
 					// Otherwise we're sending an ack
 					// Simulate lossy network
-					Packet ack = new Packet((short) 8, nextFrameExpected, incomingPacket.getSeqno());
+					Packet ack = new Packet((short) 0, (short) 8, ackno);
 					String ackCondition = ack.simLossyNetwork(ack);
 					
 					// Not corrupted and expected
-					if (incomingPacket.getSeqno() == nextFrameExpected) {
+					if (incomingPacket.getSeqno() == ackno) {
 						writeToOutputFile(incomingPacket);
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[RECV]" , ackCondition));
-						nextFrameExpected++;
 						sendAck(socket, incoming, ack);
+						ackno++;
 					}
 					
 					// Not corrupted and a duplicate (a resend) and expected
-					if (incomingPacket.getSeqno() == nextFrameExpected-1) {
+					if (incomingPacket.getSeqno() == ackno-1) {
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(),"DUPL: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[!Seq]" , ackCondition));

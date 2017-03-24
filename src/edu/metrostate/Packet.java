@@ -21,15 +21,21 @@ public class Packet implements Serializable {
 	private int seqno; 	//32-bit 4-byte Data packet Only
 	private byte data[] = new byte[500]; //0-500 bytes. Data packet only. Variable
 	
-	public Packet(short len, int ackno, int seqno) {
-		this.cksum = 0;
+	// Constructor for Data Packets
+	public Packet(short cksum, short len, int ackno, int seqno, byte[] data) {
+		this.cksum = cksum;
 		this.len = len;
 		this.ackno = ackno;
 		this.seqno = seqno;
+		this.data = data;
 	}
-
+	//Constructor for Ack Packets
+	public Packet(short cksum, short len, int ackno) {
+		this.cksum = cksum;
+		this.len = len;
+		this.ackno = ackno;
+	}
 	public Packet() {
-		this.cksum = 0;
 	}
 	
 	/**
@@ -81,6 +87,7 @@ public class Packet implements Serializable {
 	    ObjectInputStream is = new ObjectInputStream(in);
 		try {
 			Packet packet = (Packet) is.readObject();
+			packet.setCksum((short) 0);
 			return packet;
 		} catch (ClassNotFoundException | IOException e) {
 			// TODO Auto-generated catch block
