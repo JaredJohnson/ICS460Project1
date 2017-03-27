@@ -14,7 +14,6 @@ public class Sender {
 	public static Packet timeoutPacket;
 	public static int port = 5002;
 	public static int window = 1;
-	static Object monitor = new Object();
 
 	public static void main(String[] args) {
 		String hostname = "localhost"; // translates to 127.0.0.1
@@ -60,10 +59,12 @@ public class Sender {
 
 class SenderThread extends Thread {
 	private InetAddress server;
-	private DatagramSocket socket;
+	DatagramSocket socket;
 	public static float corruptDatagramsRatio;
 	private int port;
 	public static int seqno = 0;
+	public static boolean resend = false;
+	static Object monitor = new Object();
     volatile boolean stopped = false;    
 	
 	SenderThread(DatagramSocket socket, InetAddress address, int port) {
@@ -100,21 +101,22 @@ class SenderThread extends Thread {
 					seqno++;
 					Packet packet = new Packet((short) 0, (short) Sender.size, seqno, seqno, data);
 					
-					// Set static packet in case of timeout
-					Sender.timeoutPacket = packet;
+					// Slow down to human time
+					Thread.sleep(1000);
 
 					sendPacket(packet, "SENDing: ");
 					waitForAck();
-
-				} catch (SocketTimeoutException ex) { // If no ack - resend
-					System.out.println(Sender.timeoutPacket.getCurrentTime() + 
-							" [Timeout]: seqno: " + Sender.timeoutPacket.getSeqno());
-					sendPacket(Sender.timeoutPacket, "ReSend: ");
-					waitForAck();
+					while (resend == true) {
+						System.out.println(packet.getCurrentTime() + 
+								" [Timeout]: seqno: " + packet.getSeqno());
+						sendPacket(packet, "ReSend: ");
+						resend = false;
+						waitForAck();
+					}
+				} catch (IOException ex) {
+					ex.printStackTrace();
 				}
 			}
-		} catch (IOException ex) {
-			System.err.println(ex);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -136,9 +138,9 @@ class SenderThread extends Thread {
 	}
 	
 	public synchronized void waitForAck() {
-		synchronized(Sender.monitor) {
+		synchronized(monitor) {
 			try {
-				Sender.monitor.wait();
+				monitor.wait();
 			} catch(InterruptedException e) {
 			}
 		}
@@ -165,7 +167,8 @@ class ReceiverThread extends Thread {
 				return;
 			}
 			DatagramPacket input = new DatagramPacket(buffer, buffer.length);
-			try { // Receive ack datagram
+			try { 
+				// Receive ack datagram
 				socket.receive(input);
 				// Convert bytes back to Packet object
 				Packet ack = new Packet();
@@ -175,27 +178,28 @@ class ReceiverThread extends Thread {
 				if (ack.getCksum() == 1) { // Don't send next packet (Wait for timeout)
 					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
 										(ack.getAckno()) + " [ErrAck]");
-					Thread.sleep(Sender.timeout);
 				}
 				// Expected ack
-				if (ack.getAckno() == SenderThread.seqno) { // Send next packet
+				if (ack.getCksum() == 0 && ack.getAckno() == SenderThread.seqno) { // Send next packet
 					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
 							(ack.getAckno()));
-					synchronized(Sender.monitor) {
-						Sender.monitor.notifyAll();
-					}
+					wakeSender();
 				}
 				// Duplicate ack
 				if (ack.getAckno() == SenderThread.seqno-1) {
 					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
 										(ack.getAckno()) + "[DuplAck]");
+					wakeSender();
 				}
-			} catch (IOException | InterruptedException ex) {
-				System.err.println(ex);
-//			} catch (InterruptedException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
+			} catch (IOException ex) { // TIMEOUT: Resend Packet
+					SenderThread.resend = true;
+					wakeSender();
 			}
+		}
+	}
+	private void wakeSender() {
+		synchronized(SenderThread.monitor) {
+			SenderThread.monitor.notify();
 		}
 	}
 } // end class ReceiverThread

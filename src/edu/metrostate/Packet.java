@@ -53,7 +53,7 @@ public class Packet implements Serializable {
 		if (number.nextFloat() < Sender.corruptDatagramsRatio) { // Corrupt
 			int random = number.nextInt(3);
 			switch(random) {
-				case CORRUPT: packet.cksum = 1;
+				case CORRUPT: this.cksum = 1;
 				return "ERRR";
 				case DELAY: Thread.sleep(Sender.timeout);
 				return "DLYD";
@@ -87,7 +87,6 @@ public class Packet implements Serializable {
 	    ObjectInputStream is = new ObjectInputStream(in);
 		try {
 			Packet packet = (Packet) is.readObject();
-			packet.setCksum((short) 0);
 			return packet;
 		} catch (ClassNotFoundException | IOException e) {
 			// TODO Auto-generated catch block

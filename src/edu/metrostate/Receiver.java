@@ -59,7 +59,6 @@ public class Receiver implements Runnable {
 	public void run() {
 		byte[] buffer = new byte[65507];
 		try (DatagramSocket socket = new DatagramSocket (port)) {
-			socket.setSoTimeout(10000); // check every 10 seconds for shutdown
 			int ackno = 1;
 			while (true) {
 				if (isShutDown) {
@@ -78,30 +77,30 @@ public class Receiver implements Runnable {
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[CRPT]" , "No ack sent"));
+						incomingPacket.setCksum((short) 0);
 						// Sender should timeout and resend
-						Thread.sleep(Sender.timeout);
-					}
-					// Otherwise we're sending an ack
-					// Simulate lossy network
-					Packet ack = new Packet((short) 0, (short) 8, ackno);
-					String ackCondition = ack.simLossyNetwork(ack);
-					
-					// Not corrupted and expected
-					if (incomingPacket.getSeqno() == ackno) {
-						writeToOutputFile(incomingPacket);
-						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
-								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
-								"[RECV]" , ackCondition));
-						sendAck(socket, incoming, ack);
-						ackno++;
-					}
-					
-					// Not corrupted and a duplicate (a resend) and expected
-					if (incomingPacket.getSeqno() == ackno-1) {
-						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
-								incomingPacket.getCurrentTime(),"DUPL: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
-								"[!Seq]" , ackCondition));
-						sendAck(socket, incoming, ack);
+					} else {
+						// Otherwise we're sending an ack
+						// Simulate lossy network
+						Packet ack = new Packet((short) 0, (short) 8, ackno);
+						String ackCondition = ack.simLossyNetwork(ack);
+
+						// Not corrupted and expected
+						if (incomingPacket.getSeqno() == ackno) {
+							writeToOutputFile(incomingPacket);
+							System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
+									incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
+									"[RECV]" , ackCondition));
+							sendAck(socket, incoming, ack);
+							ackno++;
+						} else { // Not corrupted and a duplicate 
+							System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
+									incomingPacket.getCurrentTime(),"DUPL: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
+									"[!Seq]" , ackCondition));
+							writeToOutputFile(incomingPacket);
+							sendAck(socket, incoming, ack);
+							ackno++;
+						}
 					}
 				} catch (SocketTimeoutException ex) {
 					if (isShutDown) {
