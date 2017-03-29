@@ -10,7 +10,7 @@ public class Sender {
 	public static int timeout = 2000;
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public static float corruptDatagramsRatio = 0.25f;
+	public static float corruptDatagramsRatio = 0.10f;
 	public static Packet timeoutPacket;
 	public static int port = 5002;
 	public static int window = 1;
@@ -93,24 +93,24 @@ class SenderThread extends Thread {
 					char[] c = new char[Sender.size];
 					int i = file.read(c, 0, Sender.size-12);
 					if (i == -1) { // End of file
-						this.halt();
+						halt();
 						break; 
 					}
 					byte[] data = new String(c).getBytes("UTF-8");
 					// Create next packet
 					seqno++;
 					Packet packet = new Packet((short) 0, (short) Sender.size, seqno, seqno, data);
-					
-					// Slow down to human time
-					Thread.sleep(1000);
 
 					sendPacket(packet, "SENDing: ");
-					waitForAck();
+					if (resend == false) {
+						waitForAck();
+					}
 					while (resend == true) {
+						packet.setCksum((short) 0);
 						System.out.println(packet.getCurrentTime() + 
 								" [Timeout]: seqno: " + packet.getSeqno());
-						sendPacket(packet, "ReSend: ");
 						resend = false;
+						sendPacket(packet, "ReSend: ");
 						waitForAck();
 					}
 				} catch (IOException ex) {
@@ -134,7 +134,16 @@ class SenderThread extends Thread {
 				(packet.getSeqno()*Sender.size) + "]", condition));
 		// Send packet
 		DatagramPacket output = new DatagramPacket(data, data.length, server, port);
-		socket.send(output);
+		if (condition == "DLYD") { 
+			socket.send(output);
+			resend = true;
+		}
+		else if (condition == "DROP") { 
+			resend = true;
+		} 
+		else { // SENT or ERRR
+			socket.send(output);
+		}
 	}
 	
 	public synchronized void waitForAck() {
@@ -174,23 +183,22 @@ class ReceiverThread extends Thread {
 				Packet ack = new Packet();
 				ack = ack.convertToPacket(input.getData());
 				
-				// Corrupted ack
-				if (ack.getCksum() == 1) { // Don't send next packet (Wait for timeout)
-					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-										(ack.getAckno()) + " [ErrAck]");
-				}
-				// Expected ack
-				if (ack.getCksum() == 0 && ack.getAckno() == SenderThread.seqno) { // Send next packet
-					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-							(ack.getAckno()));
-					wakeSender();
-				}
-				// Duplicate ack
-				if (ack.getAckno() == SenderThread.seqno-1) {
-					System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-										(ack.getAckno()) + "[DuplAck]");
-					wakeSender();
-				}
+				// Not corrupt ack
+				if (ack.getCksum() != 1) {
+					// Expected ack -- Send next packet
+					if (ack.getAckno() == SenderThread.seqno) {
+						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
+								(ack.getAckno()));
+						SenderThread.resend = false;
+						wakeSender();
+					} else { // Duplicate ack -- don't do anything
+						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
+								(ack.getAckno()) + "[DuplAck]");
+					}
+				} else { // Corrupted ack -- Don't send next packet (Wait for timeout)
+						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
+								(ack.getAckno()) + " [ErrAck]");
+					}
 			} catch (IOException ex) { // TIMEOUT: Resend Packet
 					SenderThread.resend = true;
 					wakeSender();

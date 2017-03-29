@@ -45,9 +45,9 @@ public class Packet implements Serializable {
 	 * @throws InterruptedException
 	 */
 	public String simLossyNetwork(Packet packet) throws InterruptedException {
-		final int CORRUPT = 1;
-		final int DELAY = 2;
-		final int DROP = 3;
+		final int CORRUPT = 0;
+		final int DELAY = 1;
+		final int DROP = 2;
 		Random number = new Random();
 		
 		if (number.nextFloat() < Sender.corruptDatagramsRatio) { // Corrupt
@@ -55,12 +55,15 @@ public class Packet implements Serializable {
 			switch(random) {
 				case CORRUPT: this.cksum = 1;
 				return "ERRR";
-				case DELAY: Thread.sleep(Sender.timeout);
+				case DELAY:
+					Thread.sleep(Sender.timeout);
 				return "DLYD";
-				case DROP: Thread.sleep(Sender.timeout);;
+				case DROP:
+					Thread.sleep(Sender.timeout);
 				return "DROP";
 			}
-		} 
+		}
+		Thread.sleep(100); // Slow down to human time
 		return "SENT";
 	}
 	/**

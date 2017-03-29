@@ -14,12 +14,13 @@ public class Receiver implements Runnable {
 	public final static String WINDOW_SIZE = "-w";
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static int window = 1;
-	public static float corruptDatagramsRatio = 0.25f;
+	public static float corruptDatagramsRatio = 0.10f;
 	private int bufferSize; // in bytes
 	private static int port = 5002;
 	private final InetAddress address;
 	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
 	private volatile boolean isShutDown = false;
+	public static int ackno = 1;
 
 	public Receiver (InetAddress address, int port) {
 		this.address = address;
@@ -59,12 +60,10 @@ public class Receiver implements Runnable {
 	public void run() {
 		byte[] buffer = new byte[65507];
 		try (DatagramSocket socket = new DatagramSocket (port)) {
-			int ackno = 1;
 			while (true) {
 				if (isShutDown) {
 					return;
 				}
-				
 				DatagramPacket incoming = new DatagramPacket (buffer, buffer.length);
 				try {
 					socket.receive(incoming);
@@ -72,35 +71,15 @@ public class Receiver implements Runnable {
 					Packet incomingPacket = new Packet();
 					incomingPacket = incomingPacket.convertToPacket(incoming.getData());
 					
-					// Corrupted packet - Don't send ack
-					if (incomingPacket.getCksum() == 1) {
+					Packet ack = new Packet((short) 0, (short) 8, ackno);
+					
+					if (incomingPacket.getCksum() == 0) {
+						sendAck(socket, incoming, incomingPacket, ack);
+						
+					} else { // Corrupted packet - Don't send ack
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[CRPT]" , "No ack sent"));
-						incomingPacket.setCksum((short) 0);
-						// Sender should timeout and resend
-					} else {
-						// Otherwise we're sending an ack
-						// Simulate lossy network
-						Packet ack = new Packet((short) 0, (short) 8, ackno);
-						String ackCondition = ack.simLossyNetwork(ack);
-
-						// Not corrupted and expected
-						if (incomingPacket.getSeqno() == ackno) {
-							writeToOutputFile(incomingPacket);
-							System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
-									incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
-									"[RECV]" , ackCondition));
-							sendAck(socket, incoming, ack);
-							ackno++;
-						} else { // Not corrupted and a duplicate 
-							System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
-									incomingPacket.getCurrentTime(),"DUPL: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
-									"[!Seq]" , ackCondition));
-							writeToOutputFile(incomingPacket);
-							sendAck(socket, incoming, ack);
-							ackno++;
-						}
 					}
 				} catch (SocketTimeoutException ex) {
 					if (isShutDown) {
@@ -122,11 +101,35 @@ public class Receiver implements Runnable {
 		this.isShutDown = true;
 	}
 	
-	public void sendAck(DatagramSocket socket, DatagramPacket packet, Packet ack) throws IOException {
+	public void sendAck(DatagramSocket socket, DatagramPacket packet, Packet incoming, Packet ack) throws IOException, InterruptedException {
+		// Simulate lossy network
+		String ackCondition = ack.simLossyNetwork(ack);
 		byte[] data = ack.convertToBytes(ack);
 		DatagramPacket outgoing = new DatagramPacket (data, data.length, 
 				packet.getAddress(), packet.getPort());
-		socket.send(outgoing);
+		
+		// Not corrupted and expected
+		if (incoming.getSeqno() == ackno) {
+			if (ackCondition == "SENT") {
+				writeToOutputFile(incoming);
+			}
+			System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
+					incoming.getCurrentTime(), "RECV: ", "seqno: [" + incoming.getSeqno() + "]", 
+					"[RECV]" , ackCondition));
+		} else { // It's a Resend! -- just send another ack 
+			System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
+					incoming.getCurrentTime(),"DUPL: ", "seqno: [" + incoming.getSeqno() + "]", 
+					"[!Seq]" , ackCondition));
+		}
+			if (ackCondition == "DLYD") { // Timeout and send
+				socket.send(outgoing);
+				
+			} else {// Send (might be corrupt)
+				if (ack.getCksum() == 0 && SenderThread.resend == false) { // Good ack -> expect next packet
+					ackno++;
+				}
+				socket.send(outgoing);
+			}
 	}
 	
 	public void writeToOutputFile(Packet packet) throws IOException {
