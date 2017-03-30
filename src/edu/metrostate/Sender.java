@@ -20,24 +20,25 @@ public class Sender {
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
 				String argument = args[i];
-				int value = Integer.parseInt(args[i+1]);
 				
-				switch (argument) {
-					case SIZE: size = value;
-					break;
-					case TIMEOUT_INTERVAL: timeout = value;
-					break;
-					case WINDOW_SIZE: window = value;
-					break;
-					case CORRUPT_DATAGRAMS: corruptDatagramsRatio = value;
-					break;
-				}// Now check if arg is ip addr or rec port
-				if (argument.contains(".")) {
+				if (argument.equals(SIZE)) {
+					size = Integer.parseInt(args[i+1]);
+				}
+				else if (argument.equals(TIMEOUT_INTERVAL)) { 
+					timeout = Integer.parseInt(args[i+1]);
+				}
+				else if (argument.equals(WINDOW_SIZE)) {
+					window = Integer.parseInt(args[i+1]);
+				}
+				else if (argument.equals(CORRUPT_DATAGRAMS)) { 
+					corruptDatagramsRatio = Float.parseFloat(args[i+1]);
+				}
+				else if (argument.contains(".")) {
 					hostname = argument;
-					i -= 1;
+					i--;
 				} else {
 					port = Integer.parseInt(argument);
-					i -= 1;
+					i--;
 				}
 			}
 		}
@@ -106,10 +107,9 @@ class SenderThread extends Thread {
 						waitForAck();
 					}
 					while (resend == true) {
-						packet.setCksum((short) 0);
+						packet.setCksum((short) 0);// CRPT packet caught at rcvr
 						System.out.println(packet.getCurrentTime() + 
 								" [Timeout]: seqno: " + packet.getSeqno());
-						resend = false;
 						sendPacket(packet, "ReSend: ");
 						waitForAck();
 					}
@@ -134,15 +134,11 @@ class SenderThread extends Thread {
 				(packet.getSeqno()*Sender.size) + "]", condition));
 		// Send packet
 		DatagramPacket output = new DatagramPacket(data, data.length, server, port);
-		if (condition == "DLYD") { 
+		if (condition == "SENT" || condition == "ERRR") { 
 			socket.send(output);
+			resend = false;
+		} else {
 			resend = true;
-		}
-		else if (condition == "DROP") { 
-			resend = true;
-		} 
-		else { // SENT or ERRR
-			socket.send(output);
 		}
 	}
 	
@@ -191,9 +187,12 @@ class ReceiverThread extends Thread {
 								(ack.getAckno()));
 						SenderThread.resend = false;
 						wakeSender();
-					} else { // Duplicate ack -- don't do anything
+					} else { // Duplicate ack
+						int dupCount = ack.getAckno()-SenderThread.seqno;
 						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-								(ack.getAckno()) + "[DuplAck]");
+								(ack.getAckno()-dupCount) + "[DuplAck]");
+						SenderThread.resend = false;
+						wakeSender();
 					}
 				} else { // Corrupted ack -- Don't send next packet (Wait for timeout)
 						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 

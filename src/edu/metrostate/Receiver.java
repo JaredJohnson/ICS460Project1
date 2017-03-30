@@ -32,15 +32,14 @@ public class Receiver implements Runnable {
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
 				String argument = args[i];
-				int value = Integer.parseInt(args[i+1]);
-				
-				switch (argument) {
-					case WINDOW_SIZE: window = value;
-					break;
-					case CORRUPT_DATAGRAMS: corruptDatagramsRatio = value;
-					break;
-				}// Now check if arg is ip addr or rec port
-				if (argument.contains(".")) {
+
+				if (argument.equals(WINDOW_SIZE)) {
+					window = Integer.parseInt(args[i+1]);
+				}
+				else if (argument.equals(CORRUPT_DATAGRAMS)) { 
+					corruptDatagramsRatio = Float.parseFloat(args[i+1]);
+				}
+				else if (argument.contains(".")) {
 					hostname = argument;
 					i -= 1;
 				} else {
@@ -110,10 +109,8 @@ public class Receiver implements Runnable {
 		
 		// Not corrupted and expected
 		if (incoming.getSeqno() == ackno) {
-		
 			writeToOutputFile(incoming);
 			ackno++;
-			
 			System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 					incoming.getCurrentTime(), "RECV: ", "seqno: [" + incoming.getSeqno() + "]", 
 					"[RECV]" , ackCondition));
@@ -122,15 +119,10 @@ public class Receiver implements Runnable {
 					incoming.getCurrentTime(),"DUPL: ", "seqno: [" + incoming.getSeqno() + "]", 
 					"[!Seq]" , ackCondition));
 		}
-			if (ackCondition == "DLYD" || ackCondition == "CRPT") { // Timeout and send
-				socket.send(outgoing);
-				ackno--;
-				
-			} else if (ackCondition == "DROP") { // Timeout
-				ackno--;
-			} else { // SENT
+			if (ackCondition != "DROP") { 
 				socket.send(outgoing);
 			}
+			
 	}
 	
 	public void writeToOutputFile(Packet packet) throws IOException {
