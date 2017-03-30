@@ -110,9 +110,10 @@ public class Receiver implements Runnable {
 		
 		// Not corrupted and expected
 		if (incoming.getSeqno() == ackno) {
-			if (ackCondition == "SENT") {
-				writeToOutputFile(incoming);
-			}
+		
+			writeToOutputFile(incoming);
+			ackno++;
+			
 			System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 					incoming.getCurrentTime(), "RECV: ", "seqno: [" + incoming.getSeqno() + "]", 
 					"[RECV]" , ackCondition));
@@ -121,13 +122,13 @@ public class Receiver implements Runnable {
 					incoming.getCurrentTime(),"DUPL: ", "seqno: [" + incoming.getSeqno() + "]", 
 					"[!Seq]" , ackCondition));
 		}
-			if (ackCondition == "DLYD") { // Timeout and send
+			if (ackCondition == "DLYD" || ackCondition == "CRPT") { // Timeout and send
 				socket.send(outgoing);
+				ackno--;
 				
-			} else {// Send (might be corrupt)
-				if (ack.getCksum() == 0 && SenderThread.resend == false) { // Good ack -> expect next packet
-					ackno++;
-				}
+			} else if (ackCondition == "DROP") { // Timeout
+				ackno--;
+			} else { // SENT
 				socket.send(outgoing);
 			}
 	}
