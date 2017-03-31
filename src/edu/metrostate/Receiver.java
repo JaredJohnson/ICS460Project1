@@ -12,8 +12,8 @@ import java.util.logging.Logger;
 
 public class Receiver implements Runnable {
 	public final static String WINDOW_SIZE = "-w";
-	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static int window = 1;
+	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static float corruptDatagramsRatio = 0.10f;
 	private int bufferSize; // in bytes
 	private static int port = 5002;
@@ -61,7 +61,7 @@ public class Receiver implements Runnable {
 		try (DatagramSocket socket = new DatagramSocket (port)) {
 			while (true) {
 				if (isShutDown) {
-					return;
+					System.exit(0);
 				}
 				DatagramPacket incoming = new DatagramPacket (buffer, buffer.length);
 				try {
@@ -75,10 +75,12 @@ public class Receiver implements Runnable {
 					if (incomingPacket.getCksum() == 0) {
 						sendAck(socket, incoming, incomingPacket, ack);
 						
-					} else { // Corrupted packet - Don't send ack
+					} else if (incomingPacket.getCksum() == 1){ // Corrupted packet - Don't send ack
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[CRPT]" , "No ack sent"));
+					} else if (incomingPacket.getData()[0] == 0) { // Shut down thread
+						shutDown();
 					}
 				} catch (SocketTimeoutException ex) {
 					if (isShutDown) {

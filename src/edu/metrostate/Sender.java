@@ -9,11 +9,11 @@ public class Sender {
 	public final static String TIMEOUT_INTERVAL = "-t";
 	public static int timeout = 2000;
 	public final static String WINDOW_SIZE = "-w";
+	public static int window = 1;
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static float corruptDatagramsRatio = 0.10f;
-	public static Packet timeoutPacket;
 	public static int port = 5002;
-	public static int window = 1;
+	
 
 	public static void main(String[] args) {
 		String hostname = "localhost"; // translates to 127.0.0.1
@@ -61,7 +61,6 @@ public class Sender {
 class SenderThread extends Thread {
 	private InetAddress server;
 	DatagramSocket socket;
-	public static float corruptDatagramsRatio;
 	private int port;
 	public static int seqno = 0;
 	public static boolean resend = false;
@@ -87,7 +86,7 @@ class SenderThread extends Thread {
 							"ICS460-Projects1-and-2.txt"), "UTF-8"));
 			while (true) {
 				if (stopped) {
-					return;
+					System.exit(0);
 				}
 				try {
 					// Read text from buffer into char[] and convert to byte[]
@@ -95,7 +94,7 @@ class SenderThread extends Thread {
 					int i = file.read(c, 0, Sender.size-12);
 					if (i == -1) { // End of file
 						halt();
-						break; 
+						c = new char[0]; // Tell receiver to shut down
 					}
 					byte[] data = new String(c).getBytes("UTF-8");
 					// Create next packet
