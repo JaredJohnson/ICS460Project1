@@ -11,7 +11,7 @@ public class Sender {
 	public final static String WINDOW_SIZE = "-w";
 	public static int window = 1;
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public static float corruptDatagramsRatio = 0.10f;
+	public static float corruptDatagramsRatio = 0.25f;
 	public static int port = 5002;
 	
 
@@ -74,7 +74,8 @@ class SenderThread extends Thread {
 		this.socket.connect(server, port);
 	}
 	
-	public void halt() {
+	public void halt(DatagramPacket exitPacket) throws IOException {
+		socket.send(exitPacket);
 		this.stopped = true;
 	}
 	
@@ -93,8 +94,10 @@ class SenderThread extends Thread {
 					char[] c = new char[Sender.size];
 					int i = file.read(c, 0, Sender.size-12);
 					if (i == -1) { // End of file
-						halt();
-						c = new char[0]; // Tell receiver to shut down
+						byte[] exit = new byte[0]; // Tell receiver to shut down with empty data[]
+						DatagramPacket exitPacket = new DatagramPacket(exit, exit.length, server, port);
+						halt(exitPacket);
+						continue;
 					}
 					byte[] data = new String(c).getBytes("UTF-8");
 					// Create next packet

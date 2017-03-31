@@ -14,7 +14,7 @@ public class Receiver implements Runnable {
 	public final static String WINDOW_SIZE = "-w";
 	public static int window = 1;
 	public final static String CORRUPT_DATAGRAMS = "-d";
-	public static float corruptDatagramsRatio = 0.10f;
+	public static float corruptDatagramsRatio = 0.25f;
 	private int bufferSize; // in bytes
 	private static int port = 5002;
 	private final InetAddress address;
@@ -69,19 +69,21 @@ public class Receiver implements Runnable {
 					// Convert datagram data back into packet object
 					Packet incomingPacket = new Packet();
 					incomingPacket = incomingPacket.convertToPacket(incoming.getData());
+					if (incoming.getLength() == 0) {
+						shutDown();
+						continue;
+					}
 					
 					Packet ack = new Packet((short) 0, (short) 8, ackno);
 					
 					if (incomingPacket.getCksum() == 0) {
 						sendAck(socket, incoming, incomingPacket, ack);
 						
-					} else if (incomingPacket.getCksum() == 1){ // Corrupted packet - Don't send ack
+					} else { // Corrupted packet - Don't send ack
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[CRPT]" , "No ack sent"));
-					} else if (incomingPacket.getData()[0] == 0) { // Shut down thread
-						shutDown();
-					}
+					} 
 				} catch (SocketTimeoutException ex) {
 					if (isShutDown) {
 						return;
