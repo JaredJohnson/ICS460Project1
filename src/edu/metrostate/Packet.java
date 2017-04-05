@@ -49,6 +49,7 @@ public class Packet implements Serializable {
 		final int DELAY = 1;
 		final int DROP = 2;
 		Random number = new Random();
+		Thread.sleep(100); // Slow down to human time
 		
 		if (number.nextFloat() < Sender.corruptDatagramsRatio) { // Corrupt
 			int random = number.nextInt(3);
@@ -63,7 +64,6 @@ public class Packet implements Serializable {
 				return "DROP";
 			}
 		}
-		Thread.sleep(100); // Slow down to human time
 		return "SENT";
 	}
 	/**
