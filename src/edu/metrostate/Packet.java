@@ -49,9 +49,15 @@ public class Packet implements Serializable {
 		final int DELAY = 1;
 		final int DROP = 2;
 		Random number = new Random();
-		Thread.sleep(100); // Slow down to human time
+		float corruptDatagramsRatio;
 		
-		if (number.nextFloat() < Sender.corruptDatagramsRatio) { // Corrupt
+		if (packet.len == 8) { // Ack packet
+			corruptDatagramsRatio = Receiver.corruptDatagramsRatio;
+		} else {
+			corruptDatagramsRatio = Sender.corruptDatagramsRatio;
+		}
+		
+		if (number.nextFloat() < corruptDatagramsRatio) { // Corrupt
 			int random = number.nextInt(3);
 			switch(random) {
 				case CORRUPT: this.cksum = 1;

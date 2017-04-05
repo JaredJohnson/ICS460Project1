@@ -66,6 +66,7 @@ public class Receiver implements Runnable {
 				DatagramPacket incoming = new DatagramPacket (buffer, buffer.length);
 				try {
 					socket.receive(incoming);
+					Thread.sleep(100);
 					// Convert datagram data back into packet object
 					Packet incomingPacket = new Packet();
 					incomingPacket = incomingPacket.convertToPacket(incoming.getData());
