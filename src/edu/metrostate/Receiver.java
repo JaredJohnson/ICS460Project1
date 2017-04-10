@@ -80,10 +80,14 @@ public class Receiver implements Runnable {
 					if (incomingPacket.getCksum() == 0) {
 						sendAck(socket, incoming, incomingPacket, ack);
 						
-					} else { // Corrupted packet - Don't send ack
+					} else { // Corrupted packet
+						if (incomingPacket.getSeqno() == ackno-1) { //Already got?
+							sendAck(socket, incoming, incomingPacket, ack);
+						} else {
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
 								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
 								"[CRPT]" , "No ack sent"));
+						}
 					} 
 				} catch (SocketTimeoutException ex) {
 					if (isShutDown) {
