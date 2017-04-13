@@ -5,7 +5,7 @@ import java.net.*;
 
 public class Sender {
 	public final static String SIZE = "-s";
-	public static int size = 512;
+	public static int size = 1024;
 	public final static String TIMEOUT_INTERVAL = "-t";
 	public static int timeout = 2000;
 	public final static String WINDOW_SIZE = "-w";
@@ -84,7 +84,7 @@ class SenderThread extends Thread {
 		try {
 			BufferedReader file = new BufferedReader(new InputStreamReader(
 					Sender.class.getResourceAsStream(
-							"ICS460-Projects1-and-2.txt"), "UTF-8"));
+							"PHIL301_ThoughtPaper1.txt"), "UTF-8"));
 			while (true) {
 				if (stopped) {
 					System.exit(0);
@@ -140,7 +140,8 @@ class SenderThread extends Thread {
 		if (condition == "SENT" || condition == "ERRR") { 
 			socket.send(output);
 			resend = false;
-		} else {
+		} else { // DLYD or DROP
+			Thread.sleep(Sender.timeout);
 			resend = true;
 		}
 	}

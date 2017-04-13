@@ -61,13 +61,11 @@ public class Packet implements Serializable {
 			int random = number.nextInt(3);
 			switch(random) {
 				case CORRUPT: this.cksum = 1;
-				return "ERRR";
+					return "ERRR";
 				case DELAY:
-					Thread.sleep(Sender.timeout);
-				return "DLYD";
+					return "DLYD";
 				case DROP:
-					Thread.sleep(Sender.timeout);
-				return "DROP";
+					return "DROP";
 			}
 		}
 		return "SENT";
