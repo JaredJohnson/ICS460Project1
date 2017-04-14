@@ -18,17 +18,17 @@ public class Receiver implements Runnable {
 	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
 	private volatile boolean isShutDown = false;
 	private final InetAddress address;
-	private static int port = 5002;
+	private final int port;
 	public static int ackno = 1;
 	
-	public Receiver(InetAddress address, int port) {
+	public Receiver(int port, InetAddress address) {
 		this.address = address;
 		this.port = port;
 	}
 	
 	public static void main(String[] args) throws UnknownHostException {
 		String hostname = "localhost"; // translates to 127.0.0.1
-		//int port = 5002; // default port
+		int port = 5002; // default port
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
 				String argument = args[i];
@@ -49,7 +49,7 @@ public class Receiver implements Runnable {
 			}
 		}
 		InetAddress address = InetAddress.getByName(hostname);
-		Receiver server = new Receiver(address, port);
+		Receiver server = new Receiver(port, address);
 		Thread t = new Thread (server);
 		System.out.println("Receiver is waiting patiently for some packet action.......");
 		t.start();
@@ -58,7 +58,7 @@ public class Receiver implements Runnable {
 	@Override
 	public void run() {
 		byte[] buffer = new byte[65507];
-		try (DatagramSocket socket = new DatagramSocket(port)) {
+		try (DatagramSocket socket = new DatagramSocket(port, address)) {
 			while (true) {
 				if (isShutDown) {
 					System.exit(0);
