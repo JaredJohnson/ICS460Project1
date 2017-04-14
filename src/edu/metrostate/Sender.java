@@ -90,7 +90,6 @@ class SenderThread extends Thread {
 					System.exit(0);
 				}
 				try {
-					Thread.sleep(100);
 					// Read text from buffer into char[] and convert to byte[]
 					char[] c = new char[Sender.size];
 					int i = file.read(c, 0, Sender.size-12);

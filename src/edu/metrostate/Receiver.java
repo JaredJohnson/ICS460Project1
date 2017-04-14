@@ -15,20 +15,20 @@ public class Receiver implements Runnable {
 	public static int window = 1;
 	public final static String CORRUPT_DATAGRAMS = "-d";
 	public static float corruptDatagramsRatio = 0.25f;
-	private int bufferSize; // in bytes
-	private static int port = 5002;
-	private final InetAddress address;
 	private final Logger logger = Logger.getLogger(Receiver.class.getCanonicalName());
 	private volatile boolean isShutDown = false;
+	private final InetAddress address;
+	private static int port = 5002;
 	public static int ackno = 1;
-
-	public Receiver (InetAddress address, int port) {
+	
+	public Receiver(InetAddress address, int port) {
 		this.address = address;
 		this.port = port;
 	}
 	
 	public static void main(String[] args) throws UnknownHostException {
 		String hostname = "localhost"; // translates to 127.0.0.1
+		//int port = 5002; // default port
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
 				String argument = args[i];
@@ -48,8 +48,8 @@ public class Receiver implements Runnable {
 				}
 			}
 		}
-		InetAddress ia = InetAddress.getByName(hostname);
-		Receiver server = new Receiver(ia, port);
+		InetAddress address = InetAddress.getByName(hostname);
+		Receiver server = new Receiver(address, port);
 		Thread t = new Thread (server);
 		System.out.println("Receiver is waiting patiently for some packet action.......");
 		t.start();
@@ -58,7 +58,7 @@ public class Receiver implements Runnable {
 	@Override
 	public void run() {
 		byte[] buffer = new byte[65507];
-		try (DatagramSocket socket = new DatagramSocket (port)) {
+		try (DatagramSocket socket = new DatagramSocket(port)) {
 			while (true) {
 				if (isShutDown) {
 					System.exit(0);
@@ -66,7 +66,6 @@ public class Receiver implements Runnable {
 				DatagramPacket incoming = new DatagramPacket (buffer, buffer.length);
 				try {
 					socket.receive(incoming);
-					Thread.sleep(100);
 					// Convert datagram data back into packet object
 					Packet incomingPacket = new Packet();
 					incomingPacket = incomingPacket.convertToPacket(incoming.getData());
@@ -128,10 +127,12 @@ public class Receiver implements Runnable {
 					incoming.getCurrentTime(),"DUPL: ", "seqno: [" + incoming.getSeqno() + "]", 
 					"[!Seq]" , ackCondition));
 		}
-			if (ackCondition != "DROP") { 
-				socket.send(outgoing);
-			}
-			
+		if (ackCondition == "SENT" || ackCondition == "ERRR") { 
+			socket.send(outgoing);
+		} else if (ackCondition == "DLYD") {
+			Thread.sleep(Sender.timeout);
+			socket.send(outgoing);
+		} // "DROP": wait for timeout
 	}
 	
 	public void writeToOutputFile(Packet packet) throws IOException {
