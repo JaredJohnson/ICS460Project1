@@ -120,7 +120,6 @@ class SenderThread extends Thread {
 				}
 			}
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}	
@@ -141,7 +140,6 @@ class SenderThread extends Thread {
 			resend = false;
 		} else { // DLYD or DROP
 			Thread.sleep(Sender.timeout);
-			resend = true;
 		}
 	}
 	
@@ -178,7 +176,7 @@ class ReceiverThread extends Thread {
 			try { 
 				// Receive ack datagram
 				socket.receive(input);
-				Thread.sleep(100);
+				Thread.sleep(100); // Slow down to demonstrate
 				// Convert bytes back to Packet object
 				Packet ack = new Packet();
 				ack = ack.convertToPacket(input.getData());
@@ -191,22 +189,18 @@ class ReceiverThread extends Thread {
 								(ack.getAckno()));
 						SenderThread.resend = false;
 						wakeSender();
-					} else { // Duplicate ack
-						int dupCount = ack.getAckno()-SenderThread.seqno;
+					} else { // Duplicate ack -- Don't send next packet
 						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-								(ack.getAckno()-dupCount) + "[DuplAck]");
-						SenderThread.resend = false;
-						wakeSender();
+								(ack.getAckno()) + "[DuplAck]");
 					}
 				} else { // Corrupted ack -- Don't send next packet (Wait for timeout)
 						System.out.println(ack.getCurrentTime() + " [AckRcvd]: " + 
-								(ack.getAckno()) + " [ErrAck]");
+								("?") + " [ErrAck]");
 					}
 			} catch (IOException ex) { // TIMEOUT: Resend Packet
 					SenderThread.resend = true;
 					wakeSender();
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

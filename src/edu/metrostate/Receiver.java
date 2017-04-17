@@ -27,7 +27,7 @@ public class Receiver implements Runnable {
 	}
 	
 	public static void main(String[] args) throws UnknownHostException {
-		String hostname = "localhost"; // translates to 127.0.0.1
+		String hostname = "localhost"; // translates to 127.0.0.1    
 		int port = 5002; // default port
 		if (args.length > 0) { // Take in any arguments
 			for(int i = 0; i < args.length; i+= 2) {
@@ -73,18 +73,17 @@ public class Receiver implements Runnable {
 						shutDown();
 						continue;
 					}
-					
-					Packet ack = new Packet((short) 0, (short) 8, ackno);
+					Packet ack = new Packet((short) 0, (short) 8, incomingPacket.getSeqno());
 					
 					if (incomingPacket.getCksum() == 0) {
 						sendAck(socket, incoming, incomingPacket, ack);
 						
 					} else { // Corrupted packet
-						if (incomingPacket.getSeqno() == ackno-1) { //Already got?
+						if (incomingPacket.getSeqno() < ackno) { //Already got?
 							sendAck(socket, incoming, incomingPacket, ack);
 						} else {
 						System.out.print(String.format("%s [%-7s] %-7s %s %s\n",
-								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [" + incomingPacket.getSeqno() + "]", 
+								incomingPacket.getCurrentTime(), "RECV: ", "seqno: [?]", 
 								"[CRPT]" , "No ack sent"));
 						}
 					} 
@@ -132,7 +131,7 @@ public class Receiver implements Runnable {
 		} else if (ackCondition == "DLYD") {
 			Thread.sleep(Sender.timeout);
 			socket.send(outgoing);
-		} // "DROP": wait for timeout
+		} // "DROP": don't send anything
 	}
 	
 	public void writeToOutputFile(Packet packet) throws IOException {
